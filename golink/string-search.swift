@@ -35,12 +35,23 @@ func match(term: String, input: String) -> Int {
     var score = 0
     var i = input.startIndex
     var j = term.startIndex
+    var penalty = 0
     while j < term.endIndex, i < input.endIndex {
+        if let c = input[i].unicodeScalars.first, CharacterSet.whitespacesAndNewlines.contains(c) {
+            i = input.index(after: i)
+            continue
+        }
+        if let c = term[j].unicodeScalars.first, CharacterSet.whitespacesAndNewlines.contains(c) {
+            j = term.index(after: j)
+            continue
+        }
+        penalty += 1
         if input[i] == term[j] {
+            penalty = 0
             score += 1
             j = term.index(after: j)
         } else {
-            score -= 1
+            score -= penalty
         }
         i = input.index(after: i)
     }
@@ -57,5 +68,6 @@ func fuzzyMatch(term: String, input: String) -> Int {
     if m1 == a.count {
         return m1 * 2
     }
-    return max(match(term: term, input: input), m1)
+    let m2 = match(term: term, input: input)
+    return max(m1, m2)
 }

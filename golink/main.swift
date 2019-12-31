@@ -8,25 +8,6 @@
 
 import Foundation
 
-Alfred.preparePaths()
-
-let go = GoLinks(storage: FileLinkStorage(path: "links.txt"))
-
-// --query <query>
-// --go <id>
-// --add <name> <url>
-// --delete <id>
-// --rm
-// --db <file>
-
-var i = 1 // skip name of program
-var current: String? {
-    return i < CommandLine.arguments.count ? CommandLine.arguments[i] : nil
-}
-func advance() {
-    i += 1
-}
-
 enum Mode {
     case process(query: String)
     case add(name: String, path: String)
@@ -36,83 +17,30 @@ enum Mode {
     case nothing
 }
 
+Alfred.preparePaths()
 var db = "links.txt"
 var mode = Mode.process(query: "")
 
-func parse(fragments: [String]) -> (name: String, path: String)? {
-    guard fragments.count >= 2 else {
-        return nil
+
+func _parseAddOptions(query: [String]) -> Mode {
+    guard let link = parse(text: query.joined(separator: " ")), case .link = link.match else {
+        Alfred.quit("expected a name and URL after add")
     }
-    var url = fragments.last!
-    guard url.hasPrefix("http") || url.hasPrefix("www") else {
-        return nil
-    }
-    let name = fragments.dropLast().joined(separator: " ")
-    if url.hasPrefix("www.") {
-        url = "http://\(url)"
-    }
-    return (name, url)
+    return .add(name: link.name, path: link.path)
 }
 
-while let arg = current {
-    switch arg {
+var args = Args()
 
-    case "--db":
-        advance()
-        guard let f = current else {
-            Alfred.quit("expected db after --db")
-        }
-        db = f
-        advance()
+args.flag("rm")         { mode = .clear }
+args.option("--db",     { db = $0})                         { Alfred.quit("expected db after --db") }
+args.option("go",       { mode = .go(id: $0) })             { Alfred.quit("expected id after go") }
+args.option("rmgo",     { mode = .delete(id: $0) })         { Alfred.quit("expected id after rmgo") }
+args.consume("query")   { mode = .process(query: $0.joined(separator: " ")) }
+args.consume("add")     { mode = _parseAddOptions(query: $0) }
 
-    case "rm":
-        advance()
-        mode = .clear
-        
-    case "query":
-        advance()
-        var queryFragments: [String] = []
-        while let q = current {
-            advance()
-            queryFragments.append(q)
-        }
-        mode = .process(query: queryFragments.joined(separator: " "))
-        break
-        
-    case "add":
-        advance()
-        var inputs: [String] = []
-        while let c = current {
-            inputs.append(c)
-            advance()
-        }
-        guard let link = parse(fragments: inputs) else {
-            Alfred.quit("expected a name and URL after add")
-        }
-        mode = .add(name: link.name, path: link.path)
-        
-    case "go":
-        advance()
-        guard let id = current else {
-            Alfred.quit("expected id after go")
-        }
-        mode = .go(id: id)
-        
-    case "rmgo":
-        advance()
-        guard let id = current else {
-            Alfred.quit("expected id after go")
-        }
-        mode = .delete(id: id)
-        
-    default:
-        advance()
-        break
-    }
-}
+args.process()
 
 let dbPath = Alfred.data(path: db)
-
 
 switch mode {
 
@@ -121,18 +49,30 @@ case .clear:
     
 case let .process(query):
     let go = GoLinks.init(storage: FileLinkStorage(path: dbPath))
-    let links = go.query(term: query).map { link in AlfredResultItem.with { $0.title = link.name; $0.subtitle = link.path; $0.arg = "go \(link.id)" } }
+    let links = go.query(term: query).map { link in AlfredResultItem.with {
+        $0.title = link.name
+        $0.subtitle = link.path
+        $0.arg = "go \(link.id)"
+        $0.autocomplete = "\(link.name) \(link.path)"
+        }
+    }
     let alfred = Alfred()
-    if links.isEmpty {
-        if let link = parse(fragments: query.split(separator: " ").map { "\($0)" }) {
-            alfred.add(.with { $0.title = "+ \(link.name)"; $0.subtitle = link.path; $0.arg = "add \(query)" })
+    if !links.isEmpty {
+        links.forEach { alfred.add($0) }
+        alfred.done()
+    }
+    
+    if let link = parse(text: query) {
+        if case .scheme = link.match {
+            alfred.add(.with { $0.title = "+ \(link.name)"; $0.subtitle = "Enter link: \(link.path)<?>"; $0.valid = false; })
         } else {
-            alfred.add(.with { $0.title = "No links found!"; $0.valid = false })
+            alfred.add(.with { $0.title = "+ \(link.name)"; $0.subtitle = link.path; $0.arg = "add \(query)" })
         }
     } else {
-        links.forEach { alfred.add($0) }
+        alfred.add(.with { $0.title = "No links found!"; $0.valid = false })
     }
-    print(alfred.json)
+
+    alfred.done()
     
     
 case let .add(name, path):
@@ -143,10 +83,11 @@ case let .add(name, path):
 case let .go(id):
     let go = GoLinks.init(storage: FileLinkStorage(path: dbPath))
     if let link = go.get(id: id) {
-        let p = Process()
-        p.executableURL = URL.init(fileURLWithPath: "/usr/bin/open")
-        p.arguments = [link.path]
-        try? p.run()
+        print(link.path)
+//        let p = Process()
+//        p.executableURL = URL.init(fileURLWithPath: "/usr/bin/open")
+//        p.arguments = [link.path]
+//        try? p.run()
     }
     
 case let .delete(id):
