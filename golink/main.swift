@@ -84,10 +84,6 @@ case let .go(id):
     let go = GoLinks.init(storage: FileLinkStorage(path: dbPath))
     if let link = go.get(id: id) {
         print(link.path)
-//        let p = Process()
-//        p.executableURL = URL.init(fileURLWithPath: "/usr/bin/open")
-//        p.arguments = [link.path]
-//        try? p.run()
     }
     
 case let .delete(id):
