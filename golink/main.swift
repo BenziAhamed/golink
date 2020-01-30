@@ -83,7 +83,7 @@ case let .add(name, path):
 case let .go(id):
     let go = GoLinks.init(storage: FileLinkStorage(path: dbPath))
     if let link = go.get(id: id) {
-        print(link.path)
+        print(link.path, terminator: "")
     }
     
 case let .delete(id):
