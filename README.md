@@ -15,6 +15,7 @@ The following actions will return your `Google Home Page` result as a bookmark:
 - Typing `go ghp`
 - Typing `go gpage`
 
+Anchored text searches are fully supported.
 
 ## Deleting a bookmark
 
