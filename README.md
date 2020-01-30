@@ -23,3 +23,9 @@ The following actions will return your `Google Home Page` result as a bookmark:
 ## Download
 
 [Download](https://github.com/BenziAhamed/golink/raw/master/golink.workflow.zip)
+
+
+## Troubleshooting
+
+### This does not work on Catalina!
+Pretty sure you might face some issues; if so, refer this [issue with another one of my workflows](https://github.com/BenziAhamed/Menu-Bar-Search/issues/4) for a possible workaround. I don't have Catalina at the moment; I _may_ eventually code sign this.
